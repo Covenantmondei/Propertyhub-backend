@@ -1,0 +1,49 @@
+# ===============================
+# Stage 1: Build virtual environment
+# ===============================
+FROM python:3.13-slim AS builder
+
+# Copy uv binary
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
+ENV UV_LINK_MODE=copy \
+    UV_COMPILE_BYTECODE=1
+
+WORKDIR /app
+
+# Install dependencies into /app/.venv
+COPY pyproject.toml uv.lock ./
+RUN uv sync --frozen --no-dev --no-install-project
+
+# Copy application source and complete sync
+COPY . .
+RUN uv sync --frozen --no-dev
+
+# ===============================
+# Stage 2: Final minimal runtime
+# ===============================
+FROM python:3.13-slim AS runner
+
+# Security: Create non-root user
+RUN groupadd --system --gid 1001 appgroup && \
+    useradd --system --uid 1001 --gid appgroup --no-create-home covenant
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PATH="/app/.venv/bin:$PATH"
+
+WORKDIR /app
+
+COPY --from=builder --chown=covenant:appgroup /app/.venv /app/.venv
+
+COPY --chown=covenant:appgroup . /app
+
+RUN chmod +x /app/entrypoint-prod.sh
+
+USER covenant
+
+EXPOSE 8000
+
+ENTRYPOINT ["/app/entrypoint-prod.sh"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]
+
