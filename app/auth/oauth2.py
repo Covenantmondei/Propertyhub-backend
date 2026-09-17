@@ -14,7 +14,7 @@ dotenv.load_dotenv()
 
 oauth2_schema = OAuth2PasswordBearer(tokenUrl='token')
  
-SECRET_KEY = os.environ.get('SECRET_KEY')
+SECRET_KEY = os.environ.get('SECRET_KEY', 'dev_secret_key_change_in_production')
 ALGORITHM = 'HS256'
 ACCESS_TOKEN_EXPIRE_MINUTES = 120
 REFRESH_TOKEN_EXPIRE_DAYS = 14

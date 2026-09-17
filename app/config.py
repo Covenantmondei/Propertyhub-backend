@@ -3,9 +3,9 @@ import os
 from fastapi_mail import ConnectionConfig
 
 conf = ConnectionConfig(
-    MAIL_USERNAME=os.environ.get("MAIL_USERNAME"),
-    MAIL_PASSWORD=os.environ.get("MAIL_PASSWORD"),
-    MAIL_FROM=os.environ.get("MAIL_FROM"),
+    MAIL_USERNAME=os.environ.get("MAIL_USERNAME", "noreply@propertyhub.com"),
+    MAIL_PASSWORD=os.environ.get("MAIL_PASSWORD", "placeholder_password"),
+    MAIL_FROM=os.environ.get("MAIL_FROM", "noreply@propertyhub.com"),
 
     MAIL_PORT=587,
     MAIL_SERVER="smtp.gmail.com",

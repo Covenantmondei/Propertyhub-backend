@@ -1,12 +1,40 @@
 #!/bin/sh
 set -e
 
-echo "applying migrations..."
-python manage.py migrate --noinput #--skip-checks
+# Wait for PostgreSQL database if DATABASE_URL is provided
+if [ -n "$DATABASE_URL" ]; then
+  echo "Verifying database connection..."
+  python << 'EOF'
+import sys
+import time
+import os
+from urllib.parse import urlparse
+import socket
 
-echo "collecting static files..."
-python manage.py collectstatic --noinput
+db_url = os.environ.get("DATABASE_URL", "")
+if db_url.startswith("postgresql://") or db_url.startswith("postgres://"):
+    parsed = urlparse(db_url)
+    host = parsed.hostname
+    port = parsed.port or 5432
+    max_retries = 30
+    for i in range(max_retries):
+        try:
+            with socket.create_connection((host, port), timeout=2):
+                print(f"Database at {host}:{port} is reachable.")
+                sys.exit(0)
+        except (socket.timeout, ConnectionRefusedError, OSError):
+            print(f"Waiting for database to become available... ({i+1}/{max_retries})")
+            time.sleep(1)
+    print("Error: Database connection timed out.")
+    sys.exit(1)
+EOF
+fi
 
+# Run pending database migrations
+if [ -f "alembic.ini" ]; then
+  echo "Running production database migrations with Alembic..."
+  alembic upgrade head
+fi
 
-echo "starting with gunicorn + uvicorn workers"
-gunicorn config.asgi:application --workers 4 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000
+echo "Starting production application..."
+exec "$@"
