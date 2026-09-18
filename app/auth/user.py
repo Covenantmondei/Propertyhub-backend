@@ -36,7 +36,7 @@ async def create_user(db: Session, request: UserBase):
             last_name = request.last_name,
             username = request.username,
             password = Hash.bcrypt(request.password),
-            is_verified = False,
+            # is_verified = False,
             role = request.role
         )
         
@@ -53,6 +53,8 @@ async def create_user(db: Session, request: UserBase):
         
         try:
             await send_verification_email(new_user.email, new_user.id)
+            db.commit()
+            db.refresh(new_user)
         except Exception as e:
             db.rollback()
             raise HTTPException(
@@ -61,8 +63,6 @@ async def create_user(db: Session, request: UserBase):
             )
         
         # Email sent successfully, save user
-        db.commit()
-        db.refresh(new_user)
 
         return new_user
     
@@ -165,7 +165,9 @@ async def send_verification_email(email: str, user_id: int):
     token = create_verification_token(user_id)
 
     link = os.environ.get("FRONTEND_URL")
-    verification_link = f"{link}/verify-email.html?token={token}"
+    # verification_link = f"{link}/verify-email.html?token={token}"
+    verification_link = f"{link}/verify-email?token={token}"
+
 
     html_content = f"""
     <!DOCTYPE html>

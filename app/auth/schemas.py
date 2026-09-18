@@ -9,7 +9,7 @@ class UserBase(BaseModel):
     last_name: Optional[str] = None
     username: Optional[str] = None
     password: str
-    is_verified: bool = False
+    # is_verified: bool = False
     role: str = "buyer"  # buyer or agent
     # created_at: datetime
 
