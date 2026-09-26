@@ -9,6 +9,8 @@ import os
 
 from app.auth.models import User
 from app.property.models import Favorite, PropertyImage, UserProperty
+from app.auth.models import User, AgentProfile
+from app.property.models import Favorite, PropertyImage, UserProperty, VisitRequest, VisitStatus
 from app.property.schemas import PropertyCreate
 from app.notifications import notify_admin_new_property, get_admin_emails
 from app.chat.models import Conversation
@@ -478,3 +480,111 @@ def smart_match_properties(
     
     # Limit results
     return result[:limit]
+
+
+def get_agent_dashboard_stats(db: Session, agent_id: int):
+    """Get dashboard metrics and recent activity for the specified agent"""
+    agent = db.query(User).filter(User.id == agent_id).first()
+    if not agent:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Agent not found")
+        
+    if agent.role not in ["agent", "admin"]:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access forbidden: User is not an agent")
+
+    # Metrics computation
+    total_listings = db.query(UserProperty).filter(UserProperty.agent_id == agent_id).count()
+    approved_listings = db.query(UserProperty).filter(
+        UserProperty.agent_id == agent_id,
+        UserProperty.is_approved == True,
+        UserProperty.is_available == True
+    ).count()
+    pending_listings = db.query(UserProperty).filter(
+        UserProperty.agent_id == agent_id,
+        (UserProperty.is_approved == False) | (UserProperty.approval_status == "pending")
+    ).count()
+    
+    pending_visits = db.query(VisitRequest).filter(
+        VisitRequest.agent_id == agent_id,
+        VisitRequest.status == "pending"
+    ).count()
+    
+    completed_visits = db.query(VisitRequest).filter(
+        VisitRequest.agent_id == agent_id,
+        VisitRequest.status == "completed"
+    ).count()
+
+    total_favorites = db.query(Favorite).join(UserProperty).filter(
+        UserProperty.agent_id == agent_id
+    ).count()
+
+    # Profile info
+    agent_profile = db.query(AgentProfile).filter(AgentProfile.user_id == agent_id).first()
+    average_rating = agent_profile.rating if (agent_profile and agent_profile.rating is not None) else 5.0
+    total_ratings = agent_profile.total_ratings if (agent_profile and agent_profile.total_ratings is not None) else 0
+
+    # Recent visit requests
+    recent_visits_raw = db.query(VisitRequest).filter(
+        VisitRequest.agent_id == agent_id
+    ).order_by(VisitRequest.created_at.desc()).limit(5).all()
+
+    recent_visit_requests = []
+    for v in recent_visits_raw:
+        prop = db.query(UserProperty).filter(UserProperty.id == v.property_id).first()
+        buyer = db.query(User).filter(User.id == v.buyer_id).first()
+        recent_visit_requests.append({
+            "id": v.id,
+            "property_id": v.property_id,
+            "property_title": prop.title if prop else "Unknown Property",
+            "buyer_name": f"{buyer.first_name} {buyer.last_name}" if buyer else "Buyer",
+            "buyer_email": buyer.email if buyer else "",
+            "visit_type": v.visit_type,
+            "status": v.status,
+            "preferred_date": v.preferred_date,
+            "created_at": v.created_at
+        })
+
+    # Recent properties
+    recent_props_raw = db.query(UserProperty).filter(
+        UserProperty.agent_id == agent_id
+    ).order_by(UserProperty.created_at.desc()).limit(5).all()
+
+    recent_properties = [
+        {
+            "id": p.id,
+            "title": p.title,
+            "property_type": p.property_type,
+            "listing_type": p.listing_type,
+            "price": p.price,
+            "is_available": p.is_available,
+            "is_approved": p.is_approved,
+            "approval_status": p.approval_status,
+            "created_at": p.created_at
+        }
+        for p in recent_props_raw
+    ]
+
+    return {
+        "agent_info": {
+            "id": agent.id,
+            "username": agent.username,
+            "email": agent.email,
+            "first_name": agent.first_name,
+            "last_name": agent.last_name,
+            "role": agent.role,
+            "kyc_status": agent.kyc_status or "unverified",
+            "is_approved": agent.is_approved,
+            "approval_status": agent.approval_status or "approved"
+        },
+        "metrics": {
+            "total_listings": total_listings,
+            "approved_listings": approved_listings,
+            "pending_listings": pending_listings,
+            "pending_visits": pending_visits,
+            "completed_visits": completed_visits,
+            "total_favorites": total_favorites,
+            "average_rating": average_rating,
+            "total_ratings": total_ratings
+        },
+        "recent_visit_requests": recent_visit_requests,
+        "recent_properties": recent_properties
+    }

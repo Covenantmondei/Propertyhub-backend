@@ -5,6 +5,7 @@ from typing import List, Optional
 from app.auth.models import User
 from app.database import get_db
 from app.property.schemas import PropertyCreate, PropertyDisplay, PropertyListDisplay, SmartMatchRequest, SmartMatchProperty
+from app.property.agent_dashboard_schemas import AgentDashboardResponse
 from app.auth.oauth2 import get_current_user
 from app.property import property
 
