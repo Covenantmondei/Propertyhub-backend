@@ -16,7 +16,10 @@ AGENT_DATA = [
         "bio": "Specializing in luxury residential properties with over 8 years of market expertise.",
         "experience": 8,
         "rating": 4.9,
-        "avatar": "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=400"
+        "avatar": "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=400",
+        "kyc_status": KYCStatus.VERIFIED.value,
+        "is_approved": True,
+        "approval_status": ApprovalStatus.APPROVED.value
     },
     {
         "first_name": "Michael",
@@ -28,7 +31,10 @@ AGENT_DATA = [
         "bio": "Dedicated commercial and urban apartment specialist in prime downtown locations.",
         "experience": 6,
         "rating": 4.8,
-        "avatar": "https://images.unsplash.com/photo-1560250097-0b93528c311a?w=400"
+        "avatar": "https://images.unsplash.com/photo-1560250097-0b93528c311a?w=400",
+        "kyc_status": KYCStatus.VERIFIED.value,
+        "is_approved": True,
+        "approval_status": ApprovalStatus.APPROVED.value
     },
     {
         "first_name": "Elena",
@@ -40,7 +46,10 @@ AGENT_DATA = [
         "bio": "Passionate about helping families find their dream suburban homes and estates.",
         "experience": 10,
         "rating": 5.0,
-        "avatar": "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=400"
+        "avatar": "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=400",
+        "kyc_status": KYCStatus.VERIFIED.value,
+        "is_approved": True,
+        "approval_status": ApprovalStatus.APPROVED.value
     },
     {
         "first_name": "David",
@@ -52,7 +61,10 @@ AGENT_DATA = [
         "bio": "Waterfront and beach house property consultant with deep local insights.",
         "experience": 5,
         "rating": 4.7,
-        "avatar": "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=400"
+        "avatar": "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=400",
+        "kyc_status": KYCStatus.VERIFIED.value,
+        "is_approved": True,
+        "approval_status": ApprovalStatus.APPROVED.value
     },
     {
         "first_name": "Rachel",
@@ -64,7 +76,25 @@ AGENT_DATA = [
         "bio": "Expert in modern condos, townhouses, and investment properties.",
         "experience": 7,
         "rating": 4.9,
-        "avatar": "https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?w=400"
+        "avatar": "https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?w=400",
+        "kyc_status": KYCStatus.VERIFIED.value,
+        "is_approved": True,
+        "approval_status": ApprovalStatus.APPROVED.value
+    },
+    {
+        "first_name": "Marcus",
+        "last_name": "Vance",
+        "username": "unverified_agent",
+        "email": "unverified_agent@propertyhub.com",
+        "company": "Vance Realty",
+        "phone": "+1 (555) 678-9012",
+        "bio": "New agent account with unverified KYC status for testing.",
+        "experience": 2,
+        "rating": 5.0,
+        "avatar": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400",
+        "kyc_status": KYCStatus.UNVERIFIED.value,
+        "is_approved": False,
+        "approval_status": ApprovalStatus.PENDING.value
     }
 ]
 
@@ -82,7 +112,7 @@ BUYER_DATA = [
 ]
 
 def seed_users(db: Session):
-    """Seed Admin, 5 Agents with profiles, and 10 Buyers into the database."""
+    """Seed Admin, Agents with profiles (including 1 unverified agent), and 10 Buyers into the database."""
     print("Seeding users...")
     hashed_password = Hash.bcrypt(COMMON_PASSWORD)
 
@@ -116,10 +146,10 @@ def seed_users(db: Session):
                 password=hashed_password,
                 role=UserRole.AGENT.value,
                 is_verified=True,
-                is_approved=True,
-                approval_status=ApprovalStatus.APPROVED.value,
-                kyc_status=KYCStatus.VERIFIED.value,
-                kyc_verified_at=datetime.utcnow(),
+                is_approved=data["is_approved"],
+                approval_status=data["approval_status"],
+                kyc_status=data["kyc_status"],
+                kyc_verified_at=datetime.utcnow() if data["kyc_status"] == KYCStatus.VERIFIED.value else None,
                 created_at=datetime.utcnow()
             )
             db.add(agent_user)
@@ -132,13 +162,13 @@ def seed_users(db: Session):
                 bio=data["bio"],
                 years_experience=data["experience"],
                 rating=data["rating"],
-                total_ratings=12,
+                total_ratings=0 if data["kyc_status"] == KYCStatus.UNVERIFIED.value else 12,
                 profile_picture=data["avatar"],
-                id_type="National ID",
-                id_number="ID-9928172"
+                id_type=None if data["kyc_status"] == KYCStatus.UNVERIFIED.value else "National ID",
+                id_number=None if data["kyc_status"] == KYCStatus.UNVERIFIED.value else "ID-9928172"
             )
             db.add(profile)
-            print(f" -> Created Agent: {data['email']} (Password: Test1234!)")
+            print(f" -> Created Agent ({data['kyc_status']}): {data['email']} (Password: Test1234!)")
 
     # 3. Seed Buyers
     for first_name, last_name, username, email in BUYER_DATA:
@@ -161,4 +191,3 @@ def seed_users(db: Session):
 
     db.commit()
     print("User seeding completed!")
-

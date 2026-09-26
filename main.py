@@ -1,18 +1,34 @@
+import asyncio
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from app.database import Base, engine
 from app.routers import user, property, admin, chat, visits, kyc, reviews
 from app.auth.models import User, AgentProfile, ActivityLog
 from app.property.models import UserProperty, PropertyImage, Favorite, VisitRequest, PropertyReservation, AgentReview
 from app.chat.models import Conversation, Message, Notification
+from app.keep_alive import keep_alive_db_worker
 from fastapi.middleware.cors import CORSMiddleware
 
 
 Base.metadata.create_all(bind=engine)
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup: Launch database keep-alive worker (pings database every 5 mins)
+    keep_alive_task = asyncio.create_task(keep_alive_db_worker(interval_seconds=300))
+    yield
+    # Shutdown: Cancel worker task gracefully
+    keep_alive_task.cancel()
+    try:
+        await keep_alive_task
+    except asyncio.CancelledError:
+        pass
+
 app = FastAPI(
     title="Real Estate API",
     description="A comprehensive real estate management system",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan
 )
 
 origins = [
