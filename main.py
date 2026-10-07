@@ -36,7 +36,9 @@ origins = [
     'http://localhost:5501',
     'http://127.0.0.1:3000',
     'http://127.0.0.1:5501',
-    'https://mypropertyhub.vercel.app'
+    'https://mypropertyhub.vercel.app',
+    'https://mypropertyhub.dev',
+    'https://www.mypropertyhub.dev'
 ]
 
 app.add_middleware(
